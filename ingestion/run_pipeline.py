@@ -6,7 +6,7 @@ def main():
 
     print("Retrieving FEMA data...")
 
-    records = get_disaster_declarations(10)
+    records = get_disaster_declarations(100)
 
     print(f"Retrieved {len(records)} records.")
 

@@ -37,14 +37,26 @@ VALUES (
     %s, %s, %s, %s, %s, %s,
     %s, %s, %s, %s, %s, %s,
     %s, %s, %s
-);
+)
+ON CONFLICT (id)
+DO NOTHING;
 """
 
 
 def load_disaster_declarations(records):
+    """
+    Loads FEMA disaster declaration records into the
+    raw.disaster_declarations table.
+
+    Existing records (based on the primary key 'id')
+    are skipped automatically.
+    """
 
     conn = get_connection()
     cur = conn.cursor()
+
+    inserted = 0
+    skipped = 0
 
     try:
 
@@ -84,17 +96,27 @@ def load_disaster_declarations(records):
                 )
             )
 
+            if cur.rowcount == 1:
+                inserted += 1
+            else:
+                skipped += 1
+
         conn.commit()
 
-        print(f"Loaded {len(records)} records.")
+        print()
+        print("Load Summary")
+        print("----------------------")
+        print(f"Records received : {len(records)}")
+        print(f"Inserted         : {inserted}")
+        print(f"Skipped          : {skipped}")
+        print()
 
     except Exception as e:
 
         conn.rollback()
 
-        print(e)
-
-        raise
+        print("ERROR loading records.")
+        raise e
 
     finally:
 
