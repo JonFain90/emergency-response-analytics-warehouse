@@ -1,4 +1,6 @@
 from database import get_connection
+from psycopg2.extras import execute_values
+
 
 INSERT_SQL = """
 INSERT INTO raw.disaster_declarations (
@@ -31,91 +33,77 @@ INSERT INTO raw.disaster_declarations (
     last_refresh,
     hash
 )
-VALUES (
-    %s, %s, %s, %s, %s, %s, %s,
-    %s, %s, %s, %s, %s, %s,
-    %s, %s, %s, %s, %s, %s,
-    %s, %s, %s, %s, %s, %s,
-    %s, %s, %s
-)
+VALUES %s
 ON CONFLICT (id)
 DO NOTHING;
 """
 
 
-def load_disaster_declarations(records):
-    """
-    Loads FEMA disaster declaration records into the
-    raw.disaster_declarations table.
+def prepare_record(record):
 
-    Existing records (based on the primary key 'id')
-    are skipped automatically.
-    """
+    return (
+        record["id"],
+        record["femaDeclarationString"],
+        record["disasterNumber"],
+        record["state"],
+        record["declarationType"],
+        record["declarationDate"],
+        record["fyDeclared"],
+        record["incidentType"],
+        record["declarationTitle"],
+        record["ihProgramDeclared"],
+        record["iaProgramDeclared"],
+        record["paProgramDeclared"],
+        record["hmProgramDeclared"],
+        record["incidentBeginDate"],
+        record.get("incidentEndDate"),
+        record.get("disasterCloseoutDate"),
+        record["tribalRequest"],
+        record["fipsStateCode"],
+        record["fipsCountyCode"],
+        record["placeCode"],
+        record["designatedArea"],
+        record["declarationRequestNumber"],
+        record.get("lastIAFilingDate"),
+        record["incidentId"],
+        record["region"],
+        record.get("designatedIncidentTypes"),
+        record["lastRefresh"],
+        record["hash"]
+    )
+
+
+def load_disaster_declarations(records):
 
     conn = get_connection()
     cur = conn.cursor()
 
-    inserted = 0
-    skipped = 0
-
     try:
 
-        for record in records:
+        rows = []
 
-            cur.execute(
-                INSERT_SQL,
-                (
-                    record["id"],
-                    record["femaDeclarationString"],
-                    record["disasterNumber"],
-                    record["state"],
-                    record["declarationType"],
-                    record["declarationDate"],
-                    record["fyDeclared"],
-                    record["incidentType"],
-                    record["declarationTitle"],
-                    record["ihProgramDeclared"],
-                    record["iaProgramDeclared"],
-                    record["paProgramDeclared"],
-                    record["hmProgramDeclared"],
-                    record["incidentBeginDate"],
-                    record.get("incidentEndDate"),
-                    record.get("disasterCloseoutDate"),
-                    record["tribalRequest"],
-                    record["fipsStateCode"],
-                    record["fipsCountyCode"],
-                    record["placeCode"],
-                    record["designatedArea"],
-                    record["declarationRequestNumber"],
-                    record.get("lastIAFilingDate"),
-                    record["incidentId"],
-                    record["region"],
-                    record.get("designatedIncidentTypes"),
-                    record["lastRefresh"],
-                    record["hash"]
-                )
+        for record in records:
+            rows.append(
+                prepare_record(record)
             )
 
-            if cur.rowcount == 1:
-                inserted += 1
-            else:
-                skipped += 1
+        execute_values(
+            cur,
+            INSERT_SQL,
+            rows
+        )
 
         conn.commit()
 
         print()
-        print("Load Summary")
-        print("----------------------")
-        print(f"Records received : {len(records)}")
-        print(f"Inserted         : {inserted}")
-        print(f"Skipped          : {skipped}")
-        print()
+        print("-------------------------")
+        print("Bulk load complete")
+        print(f"Records received: {len(records)}")
+        print("-------------------------")
 
     except Exception as e:
 
         conn.rollback()
-
-        print("ERROR loading records.")
         raise e
 
     finally:

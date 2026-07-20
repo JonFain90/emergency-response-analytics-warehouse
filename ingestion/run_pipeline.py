@@ -1,4 +1,4 @@
-from fema_api import get_disaster_declarations
+from fema_api import get_all_disaster_declarations
 from load_raw import load_disaster_declarations
 
 
@@ -6,7 +6,7 @@ def main():
 
     print("Retrieving FEMA data...")
 
-    records = get_disaster_declarations(100)
+    records = get_all_disaster_declarations(page_size=100)
 
     print(f"Retrieved {len(records)} records.")
 
